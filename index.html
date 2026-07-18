@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Карточки для саморазвития</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER С НАВИГАЦИЕЙ -->
+        <div class="header">
+            <h1>📚 Саморазвитие</h1>
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-mode="cards">Карточки</button>
+                <button class="nav-tab" data-mode="articles">Статьи</button>
+            </div>
+        </div>
+
+        <!-- ИНФО О КАРТОЧКАХ -->
+        <div class="deck-info" id="deckInfo">
+            Карточка <span id="currentIndex">1</span> из <span id="totalCards">0</span>
+        </div>
+
+        <!-- КАРТОЧКА -->
+        <div class="card-wrapper" id="cardWrapper">
+            <div class="card" id="card">
+                <div class="card-front">
+                    <div id="cardFrontTitle" class="card-front-title"></div>
+                    <img id="cardImage" src="" alt="Картинка" />
+                </div>
+                <div class="card-back">
+                    <div class="card-text" id="cardText"></div>
+                    <div class="hint">👆 Нажмите, чтобы перевернуть</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- СТАТЬЯ (полный текст) -->
+        <div class="article-content" id="articleContent">
+            <div class="article-title" id="articleTitle"></div>
+            <div class="article-body" id="articleBody"></div>
+        </div>
+
+        <!-- КНОПКИ УПРАВЛЕНИЯ -->
+        <div class="controls" id="controls">
+            <button id="prevBtn">◀ Предыдущая</button>
+            <button id="flipBtn">🔄 Перевернуть</button>
+            <button id="nextBtn">Следующая ▶</button>
+        </div>
+
+        <div class="counter" id="progressText">Прогресс: 0/0</div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
