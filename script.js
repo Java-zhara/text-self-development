@@ -839,7 +839,7 @@ const cards = [
 
         Шакал всегда прав, а другой — виноват. Шакал видит в собеседнике врага, которого нужно победить или переделать.
 
-        Жираф — самое наземное млекопитающее с самым большим сердцем. У жирафа огромный обзор, он видит ситуацию целиком.
+        Жираф — самое высокое млекопитающее с самым большим сердцем. У жирафа огромный обзор, он видит ситуацию целиком.
 
         Язык Жирафа (или Ненасильственное общение, ННО) — это язык наблюдения, чувств и потребностей.
 
@@ -939,11 +939,27 @@ const cards = [
 ];
 
 // ================================================================
-// 2. СОСТОЯНИЕ
+// 2. СОСТОЯНИЕ И СОХРАНЕНИЕ
 // ================================================================
 let currentIndex = 0;
 let isFlipped = false;
 let currentMode = 'cards'; // 'cards' | 'articles'
+
+function saveState() {
+    try {
+        localStorage.setItem('tsd-index', String(currentIndex));
+        localStorage.setItem('tsd-mode', currentMode);
+    } catch (e) { /* приватный режим */ }
+}
+
+function loadState() {
+    try {
+        const idx = parseInt(localStorage.getItem('tsd-index'), 10);
+        if (Number.isInteger(idx) && idx >= 0 && idx < cards.length) currentIndex = idx;
+        const mode = localStorage.getItem('tsd-mode');
+        if (mode === 'cards' || mode === 'articles') currentMode = mode;
+    } catch (e) { /* приватный режим */ }
+}
 
 // ================================================================
 // 3. DOM-ЭЛЕМЕНТЫ
@@ -952,19 +968,21 @@ const card = document.getElementById('card');
 const cardFrontTitle = document.getElementById('cardFrontTitle');
 const cardImage = document.getElementById('cardImage');
 const cardText = document.getElementById('cardText');
+const cardBack = document.querySelector('.card-back');
 const currentIndexSpan = document.getElementById('currentIndex');
 const totalCardsSpan = document.getElementById('totalCards');
-const progressText = document.getElementById('progressText');
+const progressMode = document.getElementById('progressMode');
+const progressFill = document.getElementById('progressFill');
+const progressBar = document.getElementById('progressBar');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
-const flipBtn = document.getElementById('flipBtn');
 const cardWrapper = document.getElementById('cardWrapper');
 const container = document.querySelector('.container');
 const articleContent = document.getElementById('articleContent');
 const articleTitle = document.getElementById('articleTitle');
 const articleBody = document.getElementById('articleBody');
 const navTabs = document.querySelectorAll('.nav-tab');
-const deckInfo = document.getElementById('deckInfo');
+const dots = document.getElementById('dots');
 
 // ================================================================
 // 4. ФУНКЦИЯ ОТОБРАЖЕНИЯ
@@ -975,7 +993,7 @@ function renderCard(index) {
 
     cardFrontTitle.textContent = cardData.title;
     cardImage.src = cardData.image;
-    cardImage.alt = `Карточка ${index + 1}`;
+    cardImage.alt = cardData.title;
     cardText.innerHTML = cardData.text;
 
     // Обновляем статью
@@ -984,50 +1002,91 @@ function renderCard(index) {
 
     currentIndexSpan.textContent = index + 1;
     totalCardsSpan.textContent = cards.length;
-    progressText.textContent = `Прогресс: ${index + 1}/${cards.length}`;
+
+    progressMode.textContent = currentMode === 'cards' ? 'Карточка' : 'Статья';
+    progressFill.style.width = ((index + 1) / cards.length * 100) + '%';
+    progressBar.setAttribute('aria-valuenow', index + 1);
+    progressBar.setAttribute('aria-valuemax', cards.length);
+
+    // Подсвечиваем активную миниатюру
+    dots.querySelectorAll('.dot').forEach((dot, i) => {
+        dot.classList.toggle('active', i === index);
+    });
 
     if (isFlipped) {
         card.classList.remove('flipped');
         isFlipped = false;
     }
 
-    prevBtn.disabled = false;
-    nextBtn.disabled = false;
+    cardBack.scrollTop = 0;
+    articleContent.scrollTop = 0;
+
+    // Плавный переход
+    animateIn(currentMode === 'cards' ? cardWrapper : articleContent);
+    saveState();
+}
+
+function animateIn(el) {
+    el.classList.remove('animate-in');
+    void el.offsetWidth;
+    el.classList.add('animate-in');
 }
 
 // ================================================================
 // 5. ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ
 // ================================================================
-function setMode(mode) {
+function setMode(mode, save = true) {
     currentMode = mode;
 
     // Обновляем активную вкладку
     navTabs.forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.mode === mode);
+        const isActive = tab.dataset.mode === mode;
+        tab.classList.toggle('active', isActive);
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
 
     // Переключаем класс на контейнере
     container.classList.toggle('article-mode', mode === 'articles');
 
-    // Показываем/скрываем элементы
-    if (mode === 'cards') {
-        cardWrapper.style.display = 'block';
-        document.querySelector('.controls').style.display = 'flex';
-        document.querySelector('.counter').style.display = 'block';
-        deckInfo.style.display = 'block';
-        articleContent.style.display = 'none';
-    } else {
-        cardWrapper.style.display = 'none';
-        document.querySelector('.controls').style.display = 'none';
-        document.querySelector('.counter').style.display = 'none';
-        deckInfo.style.display = 'none';
-        articleContent.style.display = 'block';
-    }
+    progressMode.textContent = mode === 'cards' ? 'Карточка' : 'Статья';
+
+    if (save) saveState();
 }
 
 // ================================================================
-// 6. ОБРАБОТЧИКИ
+// 6. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И ОБРАБОТЧИКИ
 // ================================================================
+function toggleFlip() {
+    card.classList.toggle('flipped');
+    isFlipped = !isFlipped;
+}
+
+function goTo(i) {
+    currentIndex = (i + cards.length) % cards.length;
+    renderCard(currentIndex);
+}
+
+// Строим точки-миниатюры
+function buildDots() {
+    dots.innerHTML = '';
+    cards.forEach((c, i) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dot';
+        btn.dataset.num = i + 1;
+        btn.setAttribute('aria-label', `Карточка ${i + 1}`);
+
+        const img = document.createElement('img');
+        img.src = c.image;
+        img.alt = '';
+        img.loading = 'lazy';
+        btn.appendChild(img);
+
+        btn.addEventListener('click', () => goTo(i));
+        dots.appendChild(btn);
+    });
+}
+
 // Переключение режимов по клику на вкладки
 navTabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -1035,62 +1094,71 @@ navTabs.forEach(tab => {
     });
 });
 
-// Переворот карточки
+// Переворот карточки по клику (кнопки «Перевернуть» нет — клик и так переворачивает)
 cardWrapper.addEventListener('click', () => {
-    if (currentMode === 'cards') {
-        card.classList.toggle('flipped');
-        isFlipped = !isFlipped;
+    if (swiped) {
+        swiped = false;
+        return;
     }
-});
-
-flipBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
     if (currentMode === 'cards') {
-        card.classList.toggle('flipped');
-        isFlipped = !isFlipped;
+        toggleFlip();
     }
 });
 
 // Навигация
-nextBtn.addEventListener('click', () => {
-    currentIndex = (currentIndex + 1) % cards.length;
-    renderCard(currentIndex);
-});
-
-prevBtn.addEventListener('click', () => {
-    currentIndex = (currentIndex - 1 + cards.length) % cards.length;
-    renderCard(currentIndex);
-});
+nextBtn.addEventListener('click', () => goTo(currentIndex + 1));
+prevBtn.addEventListener('click', () => goTo(currentIndex - 1));
 
 // Клавиатура
 document.addEventListener('keydown', (e) => {
-    if (currentMode === 'cards') {
-        if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            nextBtn.click();
-        } else if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            prevBtn.click();
-        } else if (e.key === ' ' || e.key === 'Space') {
-            e.preventDefault();
-            flipBtn.click();
-        }
-    } else {
-        // В режиме статей стрелки тоже работают
-        if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            currentIndex = (currentIndex + 1) % cards.length;
-            renderCard(currentIndex);
-        } else if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            currentIndex = (currentIndex - 1 + cards.length) % cards.length;
-            renderCard(currentIndex);
-        }
+    const num = parseInt(e.key, 10);
+    if (num >= 1 && num <= cards.length) {
+        e.preventDefault();
+        goTo(num - 1);
+        return;
+    }
+    if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        goTo(currentIndex + 1);
+    } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goTo(currentIndex - 1);
+    } else if ((e.key === ' ' || e.key === 'Space') && currentMode === 'cards') {
+        e.preventDefault();
+        toggleFlip();
     }
 });
+
+// Свайпы на мобильных (работают и для карточек, и для статей)
+let touchStartX = 0;
+let touchStartY = 0;
+let swiped = false;
+
+function handleTouchStart(e) {
+    swiped = false;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+}
+
+function handleTouchEnd(e) {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        swiped = true;
+        if (dx < 0) goTo(currentIndex + 1);
+        else goTo(currentIndex - 1);
+    }
+}
+
+cardWrapper.addEventListener('touchstart', handleTouchStart, { passive: true });
+cardWrapper.addEventListener('touchend', handleTouchEnd, { passive: true });
+articleContent.addEventListener('touchstart', handleTouchStart, { passive: true });
+articleContent.addEventListener('touchend', handleTouchEnd, { passive: true });
 
 // ================================================================
 // 7. ЗАПУСК
 // ================================================================
-renderCard(0);
-setMode('cards');
+buildDots();
+loadState();
+setMode(currentMode, false);
+renderCard(currentIndex);
